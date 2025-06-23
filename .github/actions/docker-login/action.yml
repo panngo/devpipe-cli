@@ -1,0 +1,13 @@
+name: Docker Login
+description: Login to Docker Hub using inputs
+inputs:
+  docker_user:
+    required: true
+  docker_pass:
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Docker login
+      run: echo "${{ inputs.docker_pass }}" | docker login -u "${{ inputs.docker_user }}" --password-stdin
+      shell: bash

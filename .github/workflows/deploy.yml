@@ -1,0 +1,69 @@
+name: Deploy DevPipe
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      forceBuild:
+        description: 'Build binaries (even without changes)?'
+        required: false
+        default: 'false'
+
+jobs:
+  changes:
+    name: Check for changes
+    runs-on: ubuntu-latest
+    outputs:
+      hasChanges: ${{ steps.filter.outputs.hasChanges }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+  build-binaries:
+    name: Build DevPipe Binaries
+    needs: changes
+    if: needs.changes.outputs.hasChanges == 'true' || github.event.inputs.forceBuild == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.22"
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe src/main.go
+          mv dist/temp-devpipe dist/devpipe
+
+      - name: Compress binary with consistent name
+        run: |
+          mkdir -p artifacts
+          tar -czvf artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist devpipe
+
+      - name: Upload compressed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: devpipe-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
