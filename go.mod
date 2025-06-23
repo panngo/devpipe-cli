@@ -1,6 +1,6 @@
-module devpipe/client
+module github.com/panngo/devpipe-cli
 
-go 1.20
+go 1.22
 
 require (
 	github.com/fatih/color v1.18.0

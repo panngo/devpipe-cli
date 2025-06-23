@@ -23,8 +23,8 @@ jobs:
         id: filter
         with:
           filters: |
-            src:
-              - 'src/**'
+            hasChanges:
+              - '**/*.go'
 
   build-binaries:
     name: Build DevPipe Binaries
