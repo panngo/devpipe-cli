@@ -8,6 +8,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o devpipe src/*.go
+RUN go build -o devpipe *.go
 
 CMD ["./devpipe"]
