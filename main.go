@@ -14,13 +14,8 @@ func main() {
 
 	// Try different server URLs
 	serverURLs := []string{
-		"ws://localhost:3000/ws",  // Local development
-		// "wss://api.devpipe.cloud/ws",
-		// "wss://ws-tunnel.devpipe.cloud/ws",  // Fallback
-		// "wss://tunnel.devpipe.cloud/ws",     // Fallback
-		// "ws://tunnel.devpipe.cloud/ws",
-		// "wss://devpipe.cloud/ws",
-		// "ws://devpipe.cloud/ws",
+		// "ws://localhost:3000/ws",  // Local development
+		"wss://api.devpipe.cloud/ws",
 	}
 	
 	var conn *ws.SafeConn
