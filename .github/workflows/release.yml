@@ -1,0 +1,136 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: false
+        default: 'false'
+
+jobs:
+  build-binaries:
+    name: Build DevPipe Binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.22"
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe.exe main.go
+            mv dist/temp-devpipe.exe dist/devpipe.exe
+          else
+            GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe main.go
+            mv dist/temp-devpipe dist/devpipe
+          fi
+
+      - name: Compress binary with consistent name
+        run: |
+          mkdir -p artifacts
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            tar -czvf artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist devpipe.exe
+          else
+            tar -czvf artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist devpipe
+          fi
+
+      - name: Upload compressed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: devpipe-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+
+  create-release:
+    name: Create Release
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract binaries
+        run: |
+          mkdir -p binaries
+          for artifact in artifacts/*.tar.gz; do
+            tar -xzf "$artifact" -C binaries/
+          done
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            binaries/devpipe*
+          tag_name: ${{ github.event.inputs.version }}
+          name: DevPipe ${{ github.event.inputs.version }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          body: |
+            ## DevPipe CLI Release ${{ github.event.inputs.version }}
+            
+            ### Supported Platforms
+            - Linux (amd64, arm64)
+            - macOS (amd64, arm64)
+            - Windows (amd64, arm64)
+            
+            ### Quick Installation
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash
+            ```
+            
+            ### Platform-Specific Installation
+            
+            **Linux/macOS:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install-unix.sh | bash
+            ```
+            
+            **Windows (PowerShell):**
+            ```powershell
+            powershell -ExecutionPolicy Bypass -Command "& { iwr https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.ps1 -UseBasicParsing | iex }"
+            ```
+            
+            ### Manual Download
+            Download the appropriate binary for your platform and make it executable:
+            ```bash
+            chmod +x devpipe
+            sudo mv devpipe /usr/local/bin/
+            ```
+            
+            ### What's New
+            - Enhanced installation scripts with platform detection
+            - Support for all major platforms (Linux, macOS, Windows)
+            - Automatic binary downloads from GitHub Releases
+            - Improved error handling and user feedback
+            
+            ### Documentation
+            - [Installation Guide](https://github.com/panngo/devpipe-cli/blob/main/INSTALLATION.md)
+            - [README](https://github.com/panngo/devpipe-cli/blob/main/README.md)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

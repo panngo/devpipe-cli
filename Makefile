@@ -16,6 +16,38 @@ start: ## Run the Go client (start mode)
 build: ## Compile the Go client
 	go mod tidy && go build -o devpipe main.go
 
+build-all: ## Build binaries for all platforms
+	@echo "🔨 Building binaries for all platforms..."
+	@mkdir -p dist
+	@GOOS=linux GOARCH=amd64 go build -o dist/devpipe-linux-amd64 main.go
+	@GOOS=linux GOARCH=arm64 go build -o dist/devpipe-linux-arm64 main.go
+	@GOOS=darwin GOARCH=amd64 go build -o dist/devpipe-darwin-amd64 main.go
+	@GOOS=darwin GOARCH=arm64 go build -o dist/devpipe-darwin-arm64 main.go
+	@GOOS=windows GOARCH=amd64 go build -o dist/devpipe-windows-amd64.exe main.go
+	@GOOS=windows GOARCH=arm64 go build -o dist/devpipe-windows-arm64.exe main.go
+	@echo "✅ All binaries built successfully in dist/ directory"
+
+build-linux: ## Build Linux binaries
+	@echo "🔨 Building Linux binaries..."
+	@mkdir -p dist
+	@GOOS=linux GOARCH=amd64 go build -o dist/devpipe-linux-amd64 main.go
+	@GOOS=linux GOARCH=arm64 go build -o dist/devpipe-linux-arm64 main.go
+	@echo "✅ Linux binaries built successfully"
+
+build-darwin: ## Build macOS binaries
+	@echo "🔨 Building macOS binaries..."
+	@mkdir -p dist
+	@GOOS=darwin GOARCH=amd64 go build -o dist/devpipe-darwin-amd64 main.go
+	@GOOS=darwin GOARCH=arm64 go build -o dist/devpipe-darwin-arm64 main.go
+	@echo "✅ macOS binaries built successfully"
+
+build-windows: ## Build Windows binaries
+	@echo "🔨 Building Windows binaries..."
+	@mkdir -p dist
+	@GOOS=windows GOARCH=amd64 go build -o dist/devpipe-windows-amd64.exe main.go
+	@GOOS=windows GOARCH=arm64 go build -o dist/devpipe-windows-arm64.exe main.go
+	@echo "✅ Windows binaries built successfully"
+
 docker-start: ## Build and run the local Docker image
 	docker build -t devpipe-cli .
 	docker run -it --rm devpipe-cli

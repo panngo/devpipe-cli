@@ -17,7 +17,7 @@ jobs:
     outputs:
       hasChanges: ${{ steps.filter.outputs.hasChanges }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dorny/paths-filter@v3
         id: filter
@@ -36,8 +36,12 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+          - goos: linux
+            goarch: arm64
           - goos: windows
             goarch: amd64
+          - goos: windows
+            goarch: arm64
           - goos: darwin
             goarch: amd64
           - goos: darwin
@@ -54,16 +58,26 @@ jobs:
       - name: Build binary
         run: |
           mkdir -p dist
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe src/main.go
-          mv dist/temp-devpipe dist/devpipe
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe.exe main.go
+            mv dist/temp-devpipe.exe dist/devpipe.exe
+          else
+            GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe main.go
+            mv dist/temp-devpipe dist/devpipe
+          fi
 
       - name: Compress binary with consistent name
         run: |
           mkdir -p artifacts
-          tar -czvf artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist devpipe
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            tar -czvf artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist devpipe.exe
+          else
+            tar -czvf artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C dist devpipe
+          fi
 
       - name: Upload compressed artifact
         uses: actions/upload-artifact@v4
         with:
           name: devpipe-${{ matrix.goos }}-${{ matrix.goarch }}
           path: artifacts/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+
