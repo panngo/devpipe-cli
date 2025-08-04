@@ -1,4 +1,4 @@
-name: Create Release
+name: Simple Release
 
 on:
   workflow_dispatch:
@@ -13,24 +13,9 @@ on:
         default: 'false'
 
 jobs:
-  build-binaries:
-    name: Build DevPipe Binaries
+  build-and-release:
+    name: Build and Release
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -40,53 +25,42 @@ jobs:
         with:
           go-version: "1.22"
 
-      - name: Build binary
+      - name: Build all binaries
         run: |
           mkdir -p dist
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe.exe main.go
-            mv dist/temp-devpipe.exe dist/devpipe.exe
-          else
-            GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/temp-devpipe main.go
-            mv dist/temp-devpipe dist/devpipe
-          fi
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: devpipe-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/devpipe-${{ matrix.goos }}-${{ matrix.goarch }}*
-
-  create-release:
-    name: Create Release
-    needs: build-binaries
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Prepare binaries for release
-        run: |
-          mkdir -p binaries
-          # Copy all binaries from artifact directories
-          find artifacts -type f -executable -exec cp {} binaries/ \;
           
-          # List binaries for verification
-          echo "Binaries for release:"
-          ls -la binaries/
+          # Build Linux binaries
+          GOOS=linux GOARCH=amd64 go build -o dist/devpipe-linux-amd64 main.go
+          GOOS=linux GOARCH=arm64 go build -o dist/devpipe-linux-arm64 main.go
+          
+          # Build macOS binaries
+          GOOS=darwin GOARCH=amd64 go build -o dist/devpipe-darwin-amd64 main.go
+          GOOS=darwin GOARCH=arm64 go build -o dist/devpipe-darwin-arm64 main.go
+          
+          # Build Windows binaries
+          GOOS=windows GOARCH=amd64 go build -o dist/devpipe-windows-amd64.exe main.go
+          GOOS=windows GOARCH=arm64 go build -o dist/devpipe-windows-arm64.exe main.go
+          
+          # Make binaries executable
+          chmod +x dist/devpipe-linux-amd64
+          chmod +x dist/devpipe-linux-arm64
+          chmod +x dist/devpipe-darwin-amd64
+          chmod +x dist/devpipe-darwin-arm64
+          
+          # List built binaries
+          echo "Built binaries:"
+          ls -la dist/
 
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            binaries/devpipe-linux-amd64
-            binaries/devpipe-linux-arm64
-            binaries/devpipe-darwin-amd64
-            binaries/devpipe-darwin-arm64
-            binaries/devpipe-windows-amd64.exe
-            binaries/devpipe-windows-arm64.exe
+            dist/devpipe-linux-amd64
+            dist/devpipe-linux-arm64
+            dist/devpipe-darwin-amd64
+            dist/devpipe-darwin-arm64
+            dist/devpipe-windows-amd64.exe
+            dist/devpipe-windows-arm64.exe
           tag_name: ${{ github.event.inputs.version }}
           name: DevPipe ${{ github.event.inputs.version }}
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
