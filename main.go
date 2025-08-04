@@ -17,11 +17,11 @@ func main() {
 		// "ws://localhost:3000/ws",  // Local development
 		"wss://api.devpipe.cloud/ws",
 	}
-	
+
 	var conn *ws.SafeConn
 	var tunnelID string
 	var lastErr error
-	
+
 	for _, url := range serverURLs {
 		log.Printf("🔌 Tentando conectar em: %s", url)
 		conn, tunnelID, lastErr = ws.ConnectAndRegisterWithRetry(url, port)
@@ -31,13 +31,23 @@ func main() {
 		}
 		log.Printf("❌ Falha ao conectar em %s: %v", url, lastErr)
 	}
-	
+
 	if lastErr != nil {
 		log.Fatalf("❌ Falha ao conectar em todos os servidores: %v", lastErr)
 	}
 	defer conn.Close()
 
-	ui.PrintBanner(port, tunnelID)
+	// Get the URL from the connection response
+	tunnelURL := conn.GetURL()
+	if tunnelURL == "" {
+		// Fallback: construct URL from UUID if server didn't send it
+		uuid := conn.GetUUID()
+		if uuid != "" {
+			tunnelURL = "https://" + uuid + ".devpipe.cloud"
+		}
+	}
+
+	ui.PrintBanner(port, tunnelID, tunnelURL)
 	ui.PrintSecureReconnectionInfo(conn.GetUUID())
 	client.ListenAndServe(conn, port)
 }

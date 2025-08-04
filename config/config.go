@@ -8,10 +8,10 @@ import (
 )
 
 type TunnelConfig struct {
-	UUID       string `json:"uuid"`
+	UUID        string `json:"uuid"`
 	SecurityKey string `json:"security_key"`
-	TunnelID   string `json:"tunnel_id"`
-	Port       string `json:"port"`
+	TunnelID    string `json:"tunnel_id"`
+	Port        string `json:"port"`
 }
 
 type ConfigManager struct {
@@ -23,13 +23,13 @@ func NewConfigManager() *ConfigManager {
 	if err != nil {
 		homeDir = "."
 	}
-	
+
 	configDir := filepath.Join(homeDir, ".devpipe")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		// Fallback to current directory
 		configDir = "."
 	}
-	
+
 	return &ConfigManager{
 		configPath: filepath.Join(configDir, "tunnel.json"),
 	}
@@ -40,11 +40,11 @@ func (cm *ConfigManager) SaveTunnelConfig(config TunnelConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	
+
 	if err := os.WriteFile(cm.configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -56,12 +56,12 @@ func (cm *ConfigManager) LoadTunnelConfig() (*TunnelConfig, error) {
 		}
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	
+
 	var config TunnelConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	
+
 	return &config, nil
 }
 
@@ -70,4 +70,4 @@ func (cm *ConfigManager) ClearTunnelConfig() error {
 		return fmt.Errorf("failed to remove config file: %w", err)
 	}
 	return nil
-} 
+}

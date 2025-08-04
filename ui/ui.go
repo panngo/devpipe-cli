@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 )
 
-func PrintBanner(port, tunnelID string) {
+func PrintBanner(port, tunnelID, url string) {
 	clearConsole()
 	cyan := color.New(color.FgCyan).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
@@ -17,7 +17,7 @@ func PrintBanner(port, tunnelID string) {
 	fmt.Println()
 	fmt.Printf("%-15s %s\n", "Tunnel Status", green("online"))
 	fmt.Printf("%-15s %s\n", "Version", "custom-devpipe")
-	fmt.Printf("%-15s %s\n", "Forwarding", fmt.Sprintf("%s -> localhost:%s", yellow("https://"+tunnelID+".devpipe.cloud"), port))
+	fmt.Printf("%-15s %s\n", "Forwarding", fmt.Sprintf("%s -> localhost:%s", yellow(url), port))
 	fmt.Printf("%-15s %s\n", "Security", blue("🔐 Secure Reconnection Enabled"))
 	fmt.Println()
 	fmt.Println("HTTP Requests")

@@ -14,6 +14,20 @@ import (
 	"github.com/panngo/devpipe-cli/ws"
 )
 
+var debugMode bool
+
+// Debug logging functions
+func debugLog(format string, v ...interface{}) {
+	if debugMode {
+		log.Printf(format, v...)
+	}
+}
+
+func infoLog(format string, v ...interface{}) {
+	// Always show info logs (like HTTP requests)
+	log.Printf(format, v...)
+}
+
 type IncomingRequest struct {
 	ID      string            `json:"id"`
 	Method  string            `json:"method"`
@@ -53,8 +67,18 @@ var methodsWithBody = map[string]bool{
 func ParseFlags() string {
 	port := flag.String("port", "3000", "Local port to forward to")
 	clearConfig := flag.Bool("clear-config", false, "Clear saved tunnel configuration")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
-	
+
+	// Set debug mode globally
+	debugMode = *debug
+	if debugMode {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+	} else {
+		// Disable most logs in production mode
+		log.SetOutput(io.Discard)
+	}
+
 	// Handle clear config flag
 	if *clearConfig {
 		configManager := config.NewConfigManager()
@@ -64,7 +88,7 @@ func ParseFlags() string {
 			log.Println("🗑️  Tunnel configuration cleared successfully")
 		}
 	}
-	
+
 	return *port
 }
 
@@ -79,23 +103,23 @@ func ListenAndServe(conn *ws.SafeConn, port string) {
 		// "wss://devpipe.cloud/ws",
 		// "ws://devpipe.cloud/ws",
 	}
-	
+
 	// Store the initial tunnel ID and UUID
 	tunnelID := conn.GetTunnelID()
 	uuid := conn.GetUUID()
-	
-	log.Printf("🔗 Connected with tunnel: %s", tunnelID)
+
+	debugLog("🔗 Connected with tunnel: %s", tunnelID)
 	if uuid != "" {
-		log.Printf("🔑 UUID: %s", uuid)
+		debugLog("🔑 UUID: %s", uuid)
 	}
-	
+
 	// Configure heartbeat
 	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer heartbeatTicker.Stop()
-	
+
 	// Channel for communication between goroutines
 	errorChan := make(chan error, 1)
-	
+
 	// Goroutine for heartbeat
 	go func() {
 		for range heartbeatTicker.C {
@@ -105,68 +129,68 @@ func ListenAndServe(conn *ws.SafeConn, port string) {
 			}
 		}
 	}()
-	
+
 	for {
 		select {
 		case err := <-errorChan:
-			log.Println("❌ Heartbeat error:", err)
+			debugLog("❌ Heartbeat error: %v", err)
 			goto reconnect
 		default:
 			// Configure timeout for reading
 			conn.SetReadDeadline(time.Now().Add(35 * time.Second))
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
-				log.Println("❌ WebSocket read error:", err)
+				debugLog("❌ WebSocket read error: %v", err)
 				goto reconnect
 			}
-			
+
 			// Reset deadline after successful read
 			conn.SetReadDeadline(time.Time{})
-			
+
 			var req IncomingRequest
 			if err := json.Unmarshal(msg, &req); err != nil {
-				log.Println("❌ JSON unmarshal error:", err)
+				debugLog("❌ JSON unmarshal error: %v", err)
 				continue
 			}
 
 			go handleRequest(conn, req, port)
 		}
 		continue
-	
+
 	reconnect:
-		log.Println("🔄 Attempting to reconnect...")
-		
+		debugLog("🔄 Attempting to reconnect...")
+
 		// Stop heartbeat temporarily
 		heartbeatTicker.Stop()
-		
+
 		// Try to reconnect with multiple URLs
 		var newConn *ws.SafeConn
 		var newTunnelID string
-		
+
 		for _, serverUrl := range serverURLs {
-			log.Printf("🔌 Tentando reconectar em: %s", serverUrl)
+			debugLog("🔌 Tentando reconectar em: %s", serverUrl)
 			newConn, newTunnelID = reconnect(serverUrl, port, tunnelID, uuid)
 			if newConn != nil {
-				log.Printf("✅ Reconectado com sucesso em: %s", serverUrl)
+				debugLog("✅ Reconectado com sucesso em: %s", serverUrl)
 				break
 			}
 		}
-		
+
 		if newConn == nil {
-			log.Println("❌ Failed to reconnect to any server, exiting...")
+			debugLog("❌ Failed to reconnect to any server, exiting...")
 			return
 		}
-		
+
 		conn = newConn
 		tunnelID = newTunnelID
 		uuid = conn.GetUUID()
-		
+
 		if tunnelID == conn.GetTunnelID() {
-			log.Printf("✅ Successfully reconnected with same tunnel: %s", tunnelID)
+			debugLog("✅ Successfully reconnected with same tunnel: %s", tunnelID)
 		} else {
-			log.Printf("⚠️  Reconnected with new tunnel: %s (was: %s)", tunnelID, conn.GetTunnelID())
+			debugLog("⚠️  Reconnected with new tunnel: %s (was: %s)", tunnelID, conn.GetTunnelID())
 		}
-		
+
 		// Restart heartbeat
 		heartbeatTicker = time.NewTicker(30 * time.Second)
 		go func() {
@@ -183,14 +207,14 @@ func ListenAndServe(conn *ws.SafeConn, port string) {
 func reconnect(serverUrl, port, previousTunnelID, previousUUID string) (*ws.SafeConn, string) {
 	maxRetries := 5
 	retryDelay := time.Second * 2
-	
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		log.Printf("🔄 Reconnection attempt %d/%d...", attempt, maxRetries)
-		
+
 		var conn *ws.SafeConn
 		var tunnelID string
 		var err error
-		
+
 		// If we have a previous UUID, try secure reconnection first
 		if previousUUID != "" && attempt == 1 {
 			log.Printf("🔐 Attempting secure reconnection with UUID: %s", previousUUID)
@@ -209,11 +233,11 @@ func reconnect(serverUrl, port, previousTunnelID, previousUUID string) (*ws.Safe
 				}
 			}
 		}
-		
+
 		// Fallback to new registration
 		log.Println("🆕 Attempting new registration...")
 		conn, tunnelID, err = ws.ConnectAndRegisterWithRetry(serverUrl, port)
-		
+
 		if err == nil {
 			// If we had a previous tunnel ID and the new one is different, log this
 			if previousTunnelID != "" && previousTunnelID != tunnelID {
@@ -223,9 +247,9 @@ func reconnect(serverUrl, port, previousTunnelID, previousUUID string) (*ws.Safe
 			}
 			return conn, tunnelID
 		}
-		
+
 		log.Printf("❌ Reconnection attempt %d failed: %v", attempt, err)
-		
+
 		if attempt < maxRetries {
 			log.Printf("⏳ Waiting %v before next attempt...", retryDelay)
 			time.Sleep(retryDelay)
@@ -233,7 +257,7 @@ func reconnect(serverUrl, port, previousTunnelID, previousUUID string) (*ws.Safe
 			retryDelay = time.Duration(float64(retryDelay) * 1.5)
 		}
 	}
-	
+
 	return nil, ""
 }
 
@@ -243,45 +267,45 @@ func handleRequest(conn *ws.SafeConn, req IncomingRequest, port string) {
 			log.Printf("❌ Panic in request handler: %v", r)
 		}
 	}()
-	
+
 	// Validate HTTP method
 	if !isValidHTTPMethod(req.Method) {
 		log.Printf("❌ Unsupported HTTP method: %s", req.Method)
 		sendErrorResponse(conn, req.ID, fmt.Sprintf("Unsupported HTTP method: %s", req.Method), 405)
 		return
 	}
-	
+
 	// Validate request path
 	if req.Path == "" {
 		log.Printf("❌ Empty request path")
 		sendErrorResponse(conn, req.ID, "Empty request path", 400)
 		return
 	}
-	
+
 	// Handle special methods
 	if req.Method == "OPTIONS" {
 		handleOptionsRequest(conn, req, port)
 		return
 	}
-	
+
 	url := "http://localhost:" + port + req.Path
-	
+
 	// Create request with appropriate body handling
 	var httpReq *http.Request
 	var err error
-	
+
 	if shouldHaveBody(req.Method) && req.Body != "" {
 		httpReq, err = http.NewRequest(req.Method, url, strings.NewReader(req.Body))
 	} else {
 		httpReq, err = http.NewRequest(req.Method, url, nil)
 	}
-	
+
 	if err != nil {
 		log.Printf("❌ Error creating local request for %s: %v", url, err)
 		sendErrorResponse(conn, req.ID, "Failed to create request", 500)
 		return
 	}
-	
+
 	// PROXY MODE: Copy ALL headers exactly as received (transparent proxy)
 	for k, v := range req.Headers {
 		// Only skip headers that Go's HTTP client manages automatically
@@ -300,7 +324,7 @@ func handleRequest(conn *ws.SafeConn, req IncomingRequest, port string) {
 		// Copy all other headers exactly as received
 		httpReq.Header.Set(k, v)
 	}
-	
+
 	// Log the request for debugging
 	log.Printf("🌐 HTTP %s %s", req.Method, req.Path)
 	if req.Body != "" {
@@ -334,7 +358,7 @@ func handleRequest(conn *ws.SafeConn, req IncomingRequest, port string) {
 		Headers: map[string]string{},
 		Body:    string(body),
 	}
-	
+
 	// PROXY MODE: Copy ALL response headers exactly as received (transparent proxy)
 	for k, v := range resp.Header {
 		if len(v) > 0 {
@@ -346,12 +370,12 @@ func handleRequest(conn *ws.SafeConn, req IncomingRequest, port string) {
 			}
 		}
 	}
-	
+
 	// Ensure Content-Length is calculated correctly
 	response.Headers["Content-Length"] = fmt.Sprintf("%d", len(body))
-	
+
 	fmt.Printf("%-6s %-20s %d OK\n", req.Method, req.Path, resp.StatusCode)
-	
+
 	// Use a mutex or channel to ensure thread-safety in writing
 	if err := conn.WriteJSON(response); err != nil {
 		log.Printf("❌ Error sending response: %v", err)
@@ -383,10 +407,10 @@ func handleOptionsRequest(conn *ws.SafeConn, req IncomingRequest, port string) {
 		},
 		Body: "",
 	}
-	
+
 	log.Printf("🌐 HTTP OPTIONS %s (CORS preflight)", req.Path)
 	fmt.Printf("%-6s %-20s %d OK\n", "OPTIONS", req.Path, 200)
-	
+
 	if err := conn.WriteJSON(response); err != nil {
 		log.Printf("❌ Error sending OPTIONS response: %v", err)
 	}
@@ -395,12 +419,12 @@ func handleOptionsRequest(conn *ws.SafeConn, req IncomingRequest, port string) {
 // handleHeadResponse handles HEAD requests (no body)
 func handleHeadResponse(conn *ws.SafeConn, req IncomingRequest, resp *http.Response) {
 	response := OutgoingResponse{
-		ID:     req.ID,
-		Status: resp.StatusCode,
+		ID:      req.ID,
+		Status:  resp.StatusCode,
 		Headers: map[string]string{},
 		Body:    "", // HEAD requests should not have a body
 	}
-	
+
 	// Copy all headers from the response
 	for k, v := range resp.Header {
 		if len(v) > 0 {
@@ -411,13 +435,13 @@ func handleHeadResponse(conn *ws.SafeConn, req IncomingRequest, resp *http.Respo
 			}
 		}
 	}
-	
+
 	// Ensure Content-Length is set to 0 for HEAD requests
 	response.Headers["Content-Length"] = "0"
-	
+
 	log.Printf("🌐 HTTP HEAD %s (no body)", req.Path)
 	fmt.Printf("%-6s %-20s %d OK\n", "HEAD", req.Path, resp.StatusCode)
-	
+
 	if err := conn.WriteJSON(response); err != nil {
 		log.Printf("❌ Error sending HEAD response: %v", err)
 	}
@@ -432,7 +456,7 @@ func sendErrorResponse(conn *ws.SafeConn, reqID, message string, status int) {
 		},
 		Body: message,
 	}
-	
+
 	if err := conn.WriteJSON(response); err != nil {
 		log.Printf("❌ Error sending error response: %v", err)
 	}

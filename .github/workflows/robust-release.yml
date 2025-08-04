@@ -11,6 +11,10 @@ on:
         description: 'Is this a prerelease?'
         required: false
         default: 'false'
+      draft:
+        description: 'Create as draft release?'
+        required: false
+        default: 'false'
 
 jobs:
   build-and-release:
@@ -86,7 +90,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.version }}
           release_name: DevPipe ${{ github.event.inputs.version }}
-          draft: false
+          draft: ${{ github.event.inputs.draft == 'true' }}
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           body: |
             ## DevPipe CLI Release ${{ github.event.inputs.version }}
