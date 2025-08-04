@@ -132,4 +132,6 @@ jobs:
             - [Installation Guide](https://github.com/panngo/devpipe-cli/blob/main/INSTALLATION.md)
             - [README](https://github.com/panngo/devpipe-cli/blob/main/README.md)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        permissions:
+          contents: write 

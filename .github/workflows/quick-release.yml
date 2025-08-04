@@ -1,21 +1,19 @@
-name: Simple Release
+name: Quick Build
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., v1.0.0)'
+        description: 'Build version (e.g., v1.0.0)'
         required: true
         default: 'v1.0.0'
-      prerelease:
-        description: 'Is this a prerelease?'
-        required: false
-        default: 'false'
 
 jobs:
-  build-and-release:
-    name: Build and Release
+  build:
+    name: Build Binaries
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -51,19 +49,22 @@ jobs:
           echo "Built binaries:"
           ls -la dist/
 
-      - name: Create release
-        uses: softprops/action-gh-release@v1
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            dist/devpipe-linux-amd64
-            dist/devpipe-linux-arm64
-            dist/devpipe-darwin-amd64
-            dist/devpipe-darwin-arm64
-            dist/devpipe-windows-amd64.exe
-            dist/devpipe-windows-arm64.exe
+          name: devpipe-binaries-${{ github.event.inputs.version }}
+          path: dist/
+          retention-days: 30
+
+      - name: Create release draft
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
           tag_name: ${{ github.event.inputs.version }}
-          name: DevPipe ${{ github.event.inputs.version }}
-          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          release_name: DevPipe ${{ github.event.inputs.version }}
+          draft: true
+          prerelease: false
           body: |
             ## DevPipe CLI Release ${{ github.event.inputs.version }}
             
@@ -104,8 +105,4 @@ jobs:
             
             ### Documentation
             - [Installation Guide](https://github.com/panngo/devpipe-cli/blob/main/INSTALLATION.md)
-            - [README](https://github.com/panngo/devpipe-cli/blob/main/README.md)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        permissions:
-          contents: write 
+            - [README](https://github.com/panngo/devpipe-cli/blob/main/README.md) 
