@@ -68,21 +68,43 @@ download_binary() {
     print_status "URL: $binary_url"
     
     if command_exists curl; then
-        curl -fsSL "$binary_url" -o "$temp_dir/$binary_name"
+        if curl -fsSL -L "$binary_url" -o "$temp_dir/$binary_name"; then
+            print_success "Download completed successfully"
+        else
+            print_error "Failed to download binary from $binary_url"
+            print_error "HTTP Status: $(curl -s -L -o /dev/null -w "%{http_code}" "$binary_url")"
+            exit 1
+        fi
     elif command_exists wget; then
-        wget -qO "$temp_dir/$binary_name" "$binary_url"
+        if wget -qO "$temp_dir/$binary_name" "$binary_url"; then
+            print_success "Download completed successfully"
+        else
+            print_error "Failed to download binary from $binary_url"
+            exit 1
+        fi
     else
         print_error "Neither curl nor wget found. Please install one of them."
         exit 1
     fi
     
     if [ ! -f "$temp_dir/$binary_name" ]; then
-        print_error "Failed to download binary"
+        print_error "Binary file not found after download"
+        print_error "Temp directory contents:"
+        ls -la "$temp_dir/"
         exit 1
     fi
     
+    # Check if file is not empty
+    if [ ! -s "$temp_dir/$binary_name" ]; then
+        print_error "Downloaded file is empty"
+        exit 1
+    fi
+    
+    print_success "Binary file verified: $(ls -lh "$temp_dir/$binary_name")"
+    
     chmod +x "$temp_dir/$binary_name"
-    echo "$temp_dir/$binary_name"
+    # Return the path without any colored output
+    printf "%s" "$temp_dir/$binary_name"
 }
 
 # Function to install binary
@@ -122,7 +144,7 @@ verify_installation() {
         print_success "DevPipe successfully installed!"
         echo ""
         print_status "Version information:"
-        devpipe --version
+        devpipe -help
         echo ""
         print_status "Run 'devpipe --help' to see available commands"
     else
@@ -141,8 +163,11 @@ main() {
     local platform=$(detect_platform)
     print_status "Detected platform: $platform"
     
-    # Download binary
-    local binary_path=$(download_binary "$platform")
+    # Download binary (capture only the last line which is the path)
+    local binary_path=$(download_binary "$platform" 2>&1 | tail -n1)
+    
+    # Debug: show the actual path
+    print_status "Binary path: '$binary_path'"
     
     # Install binary
     install_binary "$binary_path" "$platform"
