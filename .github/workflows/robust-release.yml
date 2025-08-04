@@ -1,0 +1,208 @@
+name: Robust Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: false
+        default: 'false'
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.22"
+
+      - name: Build all binaries
+        run: |
+          mkdir -p dist
+          
+          # Build Linux binaries
+          echo "Building Linux binaries..."
+          GOOS=linux GOARCH=amd64 go build -o dist/devpipe-linux-amd64 main.go
+          GOOS=linux GOARCH=arm64 go build -o dist/devpipe-linux-arm64 main.go
+          
+          # Build macOS binaries
+          echo "Building macOS binaries..."
+          GOOS=darwin GOARCH=amd64 go build -o dist/devpipe-darwin-amd64 main.go
+          GOOS=darwin GOARCH=arm64 go build -o dist/devpipe-darwin-arm64 main.go
+          
+          # Build Windows binaries
+          echo "Building Windows binaries..."
+          GOOS=windows GOARCH=amd64 go build -o dist/devpipe-windows-amd64.exe main.go
+          GOOS=windows GOARCH=arm64 go build -o dist/devpipe-windows-arm64.exe main.go
+          
+          # Make binaries executable
+          chmod +x dist/devpipe-linux-amd64
+          chmod +x dist/devpipe-linux-arm64
+          chmod +x dist/devpipe-darwin-amd64
+          chmod +x dist/devpipe-darwin-arm64
+          
+          # List built binaries
+          echo "Built binaries:"
+          ls -la dist/
+          
+          # Verify binaries exist
+          for binary in dist/devpipe-*; do
+            if [ -f "$binary" ]; then
+              echo "✅ $(basename "$binary") - $(ls -lh "$binary" | awk '{print $5}')"
+            else
+              echo "❌ Missing: $(basename "$binary")"
+              exit 1
+            fi
+          done
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: DevPipe ${{ github.event.inputs.version }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          body: |
+            ## DevPipe CLI Release ${{ github.event.inputs.version }}
+            
+            ### Supported Platforms
+            - Linux (amd64, arm64)
+            - macOS (amd64, arm64)
+            - Windows (amd64, arm64)
+            
+            ### Quick Installation
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash
+            ```
+            
+            ### Platform-Specific Installation
+            
+            **Linux/macOS:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install-unix.sh | bash
+            ```
+            
+            **Windows (PowerShell):**
+            ```powershell
+            powershell -ExecutionPolicy Bypass -Command "& { iwr https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.ps1 -UseBasicParsing | iex }"
+            ```
+            
+            ### Manual Download
+            Download the appropriate binary for your platform and make it executable:
+            ```bash
+            chmod +x devpipe
+            sudo mv devpipe /usr/local/bin/
+            ```
+            
+            ### What's New
+            - Enhanced installation scripts with platform detection
+            - Support for all major platforms (Linux, macOS, Windows)
+            - Automatic binary downloads from GitHub Releases
+            - Improved error handling and user feedback
+            
+            ### Documentation
+            - [Installation Guide](https://github.com/panngo/devpipe-cli/blob/main/INSTALLATION.md)
+            - [README](https://github.com/panngo/devpipe-cli/blob/main/README.md)
+
+      - name: Upload Linux AMD64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/devpipe-linux-amd64
+          asset_name: devpipe-linux-amd64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Linux ARM64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/devpipe-linux-arm64
+          asset_name: devpipe-linux-arm64
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS AMD64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/devpipe-darwin-amd64
+          asset_name: devpipe-darwin-amd64
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS ARM64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/devpipe-darwin-arm64
+          asset_name: devpipe-darwin-arm64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows AMD64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/devpipe-windows-amd64.exe
+          asset_name: devpipe-windows-amd64.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows ARM64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/devpipe-windows-arm64.exe
+          asset_name: devpipe-windows-arm64.exe
+          asset_content_type: application/octet-stream
+
+      - name: Verify Release
+        run: |
+          echo "Release created successfully!"
+          echo "Release URL: ${{ steps.create_release.outputs.html_url }}"
+          echo ""
+          echo "Testing download URLs..."
+          VERSION="${{ github.event.inputs.version }}"
+          REPO="panngo/devpipe-cli"
+          
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+            url="https://github.com/$REPO/releases/download/$VERSION/devpipe-$platform"
+            echo "Testing: $url"
+            if curl -I "$url" | grep -q "200 OK"; then
+              echo "✅ $platform - OK"
+            else
+              echo "❌ $platform - Failed"
+            fi
+          done
+          
+          for platform in windows-amd64 windows-arm64; do
+            url="https://github.com/$REPO/releases/download/$VERSION/devpipe-$platform.exe"
+            echo "Testing: $url"
+            if curl -I "$url" | grep -q "200 OK"; then
+              echo "✅ $platform.exe - OK"
+            else
+              echo "❌ $platform.exe - Failed"
+            fi
+          done 

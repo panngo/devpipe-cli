@@ -69,7 +69,16 @@ func ParseFlags() string {
 }
 
 func ListenAndServe(conn *ws.SafeConn, port string) {
-	serverUrl := "wss://ws-api.devpipe.cloud/ws"
+	// Try different server URLs for reconnection
+	serverURLs := []string{
+		"ws://localhost:3000/ws",  // Local development
+		"wss://api.devpipe.cloud/ws",
+		"wss://ws-tunnel.devpipe.cloud/ws",  // Fallback
+		"wss://tunnel.devpipe.cloud/ws",     // Fallback
+		"ws://tunnel.devpipe.cloud/ws",
+		"wss://devpipe.cloud/ws",
+		"ws://devpipe.cloud/ws",
+	}
 	
 	// Store the initial tunnel ID and UUID
 	tunnelID := conn.GetTunnelID()
@@ -130,10 +139,21 @@ func ListenAndServe(conn *ws.SafeConn, port string) {
 		// Stop heartbeat temporarily
 		heartbeatTicker.Stop()
 		
-		// Try to reconnect
-		newConn, newTunnelID := reconnect(serverUrl, port, tunnelID, uuid)
+		// Try to reconnect with multiple URLs
+		var newConn *ws.SafeConn
+		var newTunnelID string
+		
+		for _, serverUrl := range serverURLs {
+			log.Printf("🔌 Tentando reconectar em: %s", serverUrl)
+			newConn, newTunnelID = reconnect(serverUrl, port, tunnelID, uuid)
+			if newConn != nil {
+				log.Printf("✅ Reconectado com sucesso em: %s", serverUrl)
+				break
+			}
+		}
+		
 		if newConn == nil {
-			log.Println("❌ Failed to reconnect, exiting...")
+			log.Println("❌ Failed to reconnect to any server, exiting...")
 			return
 		}
 		
