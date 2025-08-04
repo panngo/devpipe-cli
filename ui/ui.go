@@ -24,14 +24,6 @@ func PrintBanner(port, tunnelID, url string) {
 	fmt.Printf("%-6s %-20s %-6s\n", "METHOD", "PATH", "STATUS")
 }
 
-func PrintSecureReconnectionInfo(uuid string) {
-	if uuid != "" {
-		blue := color.New(color.FgBlue).SprintFunc()
-		fmt.Printf("%-15s %s\n", "UUID", blue(uuid))
-		fmt.Printf("%-15s %s\n", "Reconnection", blue("🔐 Secure"))
-	}
-}
-
 func clearConsole() {
 	fmt.Print("\033[H\033[2J")
 }
