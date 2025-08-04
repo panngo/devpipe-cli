@@ -69,7 +69,7 @@ func ParseFlags() string {
 }
 
 func ListenAndServe(conn *ws.SafeConn, port string) {
-	serverUrl := "wss://devpipe.cloud/ws"
+	serverUrl := "wss://ws-api.devpipe.cloud/ws"
 	
 	// Store the initial tunnel ID and UUID
 	tunnelID := conn.GetTunnelID()

@@ -3,3 +3,6 @@
 *.out
 .env
 dist
+
+devpipe-cli
+devipipe

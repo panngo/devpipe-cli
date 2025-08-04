@@ -116,8 +116,27 @@ cat ~/.devpipe/tunnel.json
 
 ### Instalação via binário
 
+#### Instalação Universal (Recomendado)
 ```bash
-curl -sL https://devpipe.cloud/install.sh | bash
+# Instalação automática com detecção de plataforma
+curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash
+```
+
+#### Instalação por Plataforma
+
+**Linux/macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install-unix.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+powershell -ExecutionPolicy Bypass -Command "& { iwr https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.ps1 -UseBasicParsing | iex }"
+```
+
+**WSL (Windows Subsystem for Linux):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install-unix.sh | bash
 ```
 
 ### Compilação manual

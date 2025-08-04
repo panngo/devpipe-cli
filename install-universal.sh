@@ -2,7 +2,7 @@
 
 # DevPipe Universal Installer
 # This script automatically detects the platform and uses the appropriate installation method
-# Usage: curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash
+# Usage: curl -fsSL https://devpipe.cloud/install.sh | bash
 
 set -e
 
@@ -56,7 +56,7 @@ install_unix() {
     print_status "Installing DevPipe on Unix-like system..."
     
     # Download and execute the Unix installer
-    curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install-unix.sh | bash
+    curl -fsSL https://devpipe.cloud/install-unix.sh | bash
 }
 
 # Function to install on Windows
@@ -65,7 +65,7 @@ install_windows() {
     
     if command -v powershell >/dev/null 2>&1; then
         print_status "Using PowerShell installer..."
-        powershell -ExecutionPolicy Bypass -Command "& { iwr https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.ps1 -UseBasicParsing | iex }"
+        powershell -ExecutionPolicy Bypass -Command "& { iwr https://devpipe.cloud/install.ps1 -UseBasicParsing | iex }"
     else
         print_error "PowerShell not found. Please install PowerShell and try again."
         exit 1
@@ -121,8 +121,8 @@ case "${1:-}" in
         echo "This installer automatically detects your platform and uses the appropriate installation method."
         echo ""
         echo "Usage:"
-echo "  curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash"
-echo "  curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash -s -- --help"
+        echo "  curl -fsSL https://devpipe.cloud/install.sh | bash"
+        echo "  curl -fsSL https://devpipe.cloud/install.sh | bash -s -- --help"
         echo ""
         echo "Supported platforms:"
         echo "  - Linux (including WSL)"
@@ -130,18 +130,18 @@ echo "  curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/ins
         echo "  - Windows (PowerShell required)"
         echo ""
         echo "Examples:"
-echo "  # Install DevPipe (automatic platform detection)"
-echo "  curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.sh | bash"
+        echo "  # Install DevPipe (automatic platform detection)"
+        echo "  curl -fsSL https://devpipe.cloud/install.sh | bash"
         echo ""
         echo "  # Install with help"
         echo "  curl -fsSL https://devpipe.cloud/install.sh | bash -s -- --help"
         echo ""
         echo "Manual installation:"
-echo "  # Linux/macOS"
-echo "  curl -fsSL https://raw.githubusercontent.com/panngo/devpipe-cli/main/install-unix.sh | bash"
+        echo "  # Linux/macOS"
+        echo "  curl -fsSL https://devpipe.cloud/install-unix.sh | bash"
         echo ""
         echo "  # Windows"
-echo "  powershell -ExecutionPolicy Bypass -Command \"& { iwr https://raw.githubusercontent.com/panngo/devpipe-cli/main/install.ps1 -UseBasicParsing | iex }\""
+        echo "  powershell -ExecutionPolicy Bypass -Command \"& { iwr https://devpipe.cloud/install.ps1 -UseBasicParsing | iex }\""
         echo ""
         exit 0
         ;;
